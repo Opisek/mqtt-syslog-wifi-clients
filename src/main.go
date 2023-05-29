@@ -113,7 +113,7 @@ func parseSyslog(syslog string) State {
 	if apMatch == nil {
 		log.Fatalln(`Malformed syslog: Must include the AP name e.g., "WTP:OpiAP"`)
 	}
-	ap := ssidMatch[1]
+	ap := apMatch[1]
 
 	radioRegex := regexp.MustCompile("Radio(\\d+)")
 	radioMatch := radioRegex.FindStringSubmatch(syslog)
