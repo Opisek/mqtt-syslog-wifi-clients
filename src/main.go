@@ -1,10 +1,12 @@
 package main
 
 import (
+	"bufio"
 	"encoding/json"
 	"fmt"
 	"log"
 	"os"
+	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
@@ -43,57 +45,58 @@ type MqttDevice struct {
 }
 
 func parseEnv() Vars {
-	envErr := godotenv.Load(".env")
+	executable, executableErr := os.Executable()
+	if executableErr != nil {
+		log.Fatalln(fmt.Sprintf(`Could not determine executable directory: "%s"`, executableErr))
+	}
+	executablePath := filepath.Dir(executable)
+	envPath := filepath.Join(executablePath, ".env")
+
+	envErr := godotenv.Load(envPath)
 	if envErr != nil {
-		log.Fatalf(`Could not loed .env: "%s"`, envErr)
+		log.Fatalln(fmt.Sprintf(`Could not load .env: "%s"`, envErr))
 	}
 
 	host := os.Getenv("MQTT_HOST")
 	if host == "" {
-		panic("Malformed .env: MQTT_HOST missing")
+		log.Fatalln("Malformed .env: MQTT_HOST missing")
 	}
 	port := os.Getenv("MQTT_PORT")
 	if port == "" {
-		panic("Malformed .env: MQTT_PORT missing")
+		log.Fatalln("Malformed .env: MQTT_PORT missing")
 	}
 	portNumber, portError := strconv.Atoi(port)
 	if portError != nil {
-		panic("Malformed .env: MQTT_PORT must be numeric")
+		log.Fatalln("Malformed .env: MQTT_PORT must be numeric")
 	}
 	user := os.Getenv("MQTT_USER")
 	if user == "" {
-		panic("Malformed .env: MQTT_USER missing")
+		log.Fatalln("Malformed .env: MQTT_USER missing")
 	}
 	pass := os.Getenv("MQTT_PASS")
 	if pass == "" {
-		panic("Malformed .env: MQTT_PASS missing")
+		log.Fatalln("Malformed .env: MQTT_PASS missing")
 	}
 	topic := os.Getenv("MQTT_TOPIC")
 	if topic == "" {
-		panic("Malformed .env: MQTT_TOPIC missing")
+		log.Fatalln("Malformed .env: MQTT_TOPIC missing")
 	}
 
 	return Vars{host, portNumber, user, pass, topic}
 }
 
-func parseSyslog(args []string) State {
-	if len(args) != 2 {
-		panic(`Malformed command line arguments: Usage: "<filename> <syslog message>"`)
-	}
-
-	syslog := args[1]
-
+func parseSyslog(syslog string) State {
 	connectedRegex := regexp.MustCompile("connected|disassociated")
 	connectedMatch := connectedRegex.FindString(syslog)
 	if connectedMatch == "" {
-		panic(`Malformed syslog: Must either include "connected" or "disassociated"`)
+		log.Fatalln(`Malformed syslog: Must either include "connected" or "disassociated"`)
 	}
 	connected := connectedMatch == "connected"
 
 	macsRegex := regexp.MustCompile("(([0-9A-Fa-f]{2}:){5}([0-9A-Fa-f]{2}))")
 	macsMatch := macsRegex.FindAllString(syslog, 2)
 	if len(macsMatch) != 2 {
-		panic("Malformed syslog: Must include station and client MAC addresses")
+		log.Fatalln("Malformed syslog: Must include station and client MAC addresses")
 	}
 	stationMac := macsMatch[0]
 	clientMac := macsMatch[1]
@@ -101,21 +104,21 @@ func parseSyslog(args []string) State {
 	ssidRegex := regexp.MustCompile("VSS:(\\w+)")
 	ssidMatch := ssidRegex.FindStringSubmatch(syslog)
 	if ssidMatch == nil {
-		panic(`Malformed syslog: Must include the SSID e.g., "VSS:OpiNet"`)
+		log.Fatalln(`Malformed syslog: Must include the SSID e.g., "VSS:OpiNet"`)
 	}
 	ssid := ssidMatch[1]
 
 	apRegex := regexp.MustCompile("WTP:(\\w+)")
 	apMatch := apRegex.FindStringSubmatch(syslog)
 	if apMatch == nil {
-		panic(`Malformed syslog: Must include the AP name e.g., "WTP:OpiAP"`)
+		log.Fatalln(`Malformed syslog: Must include the AP name e.g., "WTP:OpiAP"`)
 	}
 	ap := ssidMatch[1]
 
 	radioRegex := regexp.MustCompile("Radio(\\d+)")
 	radioMatch := radioRegex.FindStringSubmatch(syslog)
 	if radioMatch == nil {
-		panic(`Malformed syslog: Must include the radio number e.g. "Radio1"`)
+		log.Fatalln(`Malformed syslog: Must include the radio number e.g. "Radio1"`)
 	}
 	radio, _ := strconv.Atoi(radioMatch[1])
 
@@ -131,7 +134,7 @@ func connectMqtt(vars Vars) mqtt.Client {
 
 	client := mqtt.NewClient(options)
 	if token := client.Connect(); token.Wait() && token.Error() != nil {
-		panic(fmt.Sprintf(`Could not connect to MQTT broker: "%s"`, token.Error()))
+		log.Fatalln(fmt.Sprintf(`Could not connect to MQTT broker: "%s"`, token.Error()))
 	}
 
 	return client
@@ -170,7 +173,13 @@ func publish(client mqtt.Client, topic string, payload interface{}) {
 }
 
 func publishState(client mqtt.Client, device MqttDevice) {
-	publish(client, device.propertyStateTopic("connected"), strconv.FormatBool(device.state.connected))
+	var connectedString string
+	if device.state.connected {
+		connectedString = "online"
+	} else {
+		connectedString = "offline"
+	}
+	publish(client, device.propertyStateTopic("connected"), connectedString)
 	publish(client, device.propertyStateTopic("ssid"), device.state.ssid)
 	publish(client, device.propertyStateTopic("station"), device.state.station)
 	publish(client, device.propertyStateTopic("ap"), device.state.ap)
@@ -191,16 +200,12 @@ func publishDiscoveryProperty(client mqtt.Client, device MqttDevice, property st
 	}
 
 	if property != "connected" {
-		discoveryData["availability"] = map[string]interface{}{
-			"topic":                 device.propertyStateTopic("connected"),
-			"payload_available":     true,
-			"payload_not_available": false,
-		}
+		discoveryData["availability_topic"] = device.propertyStateTopic("connected")
 	}
 
 	jsonData, jsonErr := json.Marshal(discoveryData)
 	if jsonErr != nil {
-		panic(fmt.Sprintf(`Error occured during payload marshalling: "%s"`, jsonErr))
+		log.Fatalln(fmt.Sprintf(`Error occured during payload marshalling: "%s"`, jsonErr))
 	}
 
 	publish(client, topic, string(jsonData))
@@ -216,12 +221,21 @@ func publishDiscovery(client mqtt.Client, device MqttDevice) {
 
 func main() {
 	vars := parseEnv()
-	state := parseSyslog(os.Args)
 	client := connectMqtt(vars)
-	device := formatDevice(state, vars)
 
-	publishState(client, device)
-	publishDiscovery(client, device)
+	reader := bufio.NewReader(os.Stdin)
+	for {
+		syslog, err := reader.ReadString('\n')
+		if err != nil {
+			break
+		}
+
+		state := parseSyslog(syslog)
+		device := formatDevice(state, vars)
+
+		publishState(client, device)
+		publishDiscovery(client, device)
+	}
 
 	client.Disconnect(0)
 }
