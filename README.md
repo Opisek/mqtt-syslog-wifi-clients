@@ -1,5 +1,6 @@
 # mqtt-syslog-wifi-clients
-Detect devices connected to a wifi network via syslog messages
+Detect devices connected to a wifi network via syslog messages.
+Useful for easy presence detection with virtually no overhead.
 
 # Table of Contents
 - [Use-Case Scenario](#use-case-scenario)
