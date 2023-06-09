@@ -33,8 +33,8 @@ This way, I'm able to detect when I'm home based on my devices' wifi connection 
 2. Clone this repository
     ```sh
     cd ~
-    git clone git@github.com:Opisek/mqtt-syslog-wifi-clients.git
-    cd mqtt-syslog-wifi-clients
+    git clone https://github.com/Opisek/mqtt-syslog-wifi-clients.git
+    cd mqtt-syslog-wifi-clients/src
     ```
 
 3. Environmental Variables
@@ -78,11 +78,15 @@ This way, I'm able to detect when I'm home based on my devices' wifi connection 
 
     - Open the `wificlients.conf` configuration file from the cloned repository and adjust the following:
         - Change `HOST` to the IP address of your router e.g., `10.0.0.1`
-        - Change `BINARY` to the path of the compiled go file e.g, `/home/opisek/mqtt-syslog-wifi-clients/mqtt-syslog-wifi-clients`
+        - Change `BINARY` to the path of the compiled go file e.g, `/home/opisek/mqtt-syslog-wifi-clients/src/mqtt-syslog-wifi-clients`
     
     - Copy the edited `wificlient.conf` file to `/etc/rsyslog.d/`
 
 6. Set up your router to use your syslog server via UDP (or TCP)
+
+7. Restart *rsyslog*:
+    ```sh
+    sudo systemctl restart rsyslog
 
 # Usage
 *[Homeassistant](https://www.home-assistant.io/)* now automatically detects devices on your network, provided it's connected to the same MQTT broker.
