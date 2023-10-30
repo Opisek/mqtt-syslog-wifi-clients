@@ -98,8 +98,8 @@ func parseSyslog(syslog string) State {
 	if len(macsMatch) != 2 {
 		log.Fatalln("Malformed syslog: Must include station and client MAC addresses")
 	}
-	stationMac := macsMatch[0]
-	clientMac := macsMatch[1]
+	stationMac := strings.ToUpper(macsMatch[0])
+	clientMac := strings.ToUpper(macsMatch[1])
 
 	ssidRegex := regexp.MustCompile("VSS:(\\w+)")
 	ssidMatch := ssidRegex.FindStringSubmatch(syslog)
