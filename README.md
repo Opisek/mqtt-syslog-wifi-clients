@@ -14,7 +14,7 @@ Although I'm very satisfied with this device, for some reason the rebranded vers
 
 This becomes a problem when I want to programmically check which devices are connected to my wifi networks at any given point in time.
 
-Thankfully, the router lets my forward syslog messages to other servers.
+Thankfully, the router lets me forward syslog messages to other servers.
 Among them there are logs from the CAPWAP controller:
 ```
 XX:XX:XX:XX:XX:XX: New station YY:YY:YY:YY:YY:YY connected to VSS:OpiNet at WTP:OpiAP on Radio1
