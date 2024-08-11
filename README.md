@@ -78,7 +78,7 @@ This way, I'm able to detect when I'm home based on my devices' wifi connection 
 
     - Open the `wificlients.conf` configuration file from the cloned repository and adjust the following:
         - Change `HOST` to the IP address of your router e.g., `10.0.0.1`
-        - Change `BINARY` to the path of the compiled go file e.g, `/home/opisek/mqtt-syslog-wifi-clients/src/mqtt-syslog-wifi-clients`
+        - Change `BINARY` to the path of the compiled go file e.g., `/home/opisek/mqtt-syslog-wifi-clients/src/mqtt-syslog-wifi-clients`
     
     - Copy the edited `wificlient.conf` file to `/etc/rsyslog.d/`
 
@@ -101,7 +101,7 @@ Ap|`sensor.wifi_client_xx_xx_xx_xx_xx_xx_ap`|The name of the access point that t
 Connected|`sensor.wifi_client_xx_xx_xx_xx_xx_xx_connected`|`online` or `offline`
 Radio|`sensor.wifi_client_xx_xx_xx_xx_xx_xx_radio`|The number of the access point's radio that the device is connected to
 Ssid|`sensor.wifi_client_xx_xx_xx_xx_xx_xx_ssid`|The SSID that the device is connected to
-Station|`sensor.wifi_client_xx_xx_xx_xx_xx_xx_station`|The MAC address of the access poitn that the device is connected to
+Station|`sensor.wifi_client_xx_xx_xx_xx_xx_xx_station`|The MAC address of the access point that the device is connected to
 
 Every entity other than `Connected` is only available when `Connected` is `online`.
 
