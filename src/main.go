@@ -47,14 +47,14 @@ type MqttDevice struct {
 func parseEnv() Vars {
 	executable, executableErr := os.Executable()
 	if executableErr != nil {
-		log.Fatalln(fmt.Sprintf(`Could not determine executable directory: "%s"`, executableErr))
+		log.Fatalf(`Could not determine executable directory: "%s"`, executableErr)
 	}
 	executablePath := filepath.Dir(executable)
 	envPath := filepath.Join(executablePath, ".env")
 
 	envErr := godotenv.Load(envPath)
 	if envErr != nil {
-		log.Fatalln(fmt.Sprintf(`Could not load .env: "%s"`, envErr))
+		log.Fatalf(`Could not load .env: "%s"`, envErr)
 	}
 
 	host := os.Getenv("MQTT_HOST")
@@ -85,40 +85,77 @@ func parseEnv() Vars {
 	return Vars{host, portNumber, user, pass, topic}
 }
 
+// Digitalisierungsbox Smart
+//func parseSyslog(syslog string) State {
+//	connectedRegex := regexp.MustCompile("connected|disassociated")
+//	connectedMatch := connectedRegex.FindString(syslog)
+//	if connectedMatch == "" {
+//		log.Fatalln(`Malformed syslog: Must either include "connected" or "disassociated"`)
+//	}
+//	connected := connectedMatch == "connected"
+//
+//	macsRegex := regexp.MustCompile("(([0-9A-Fa-f]{2}:){5}([0-9A-Fa-f]{2}))")
+//	macsMatch := macsRegex.FindAllString(syslog, 2)
+//	if len(macsMatch) != 2 {
+//		log.Fatalln("Malformed syslog: Must include station and client MAC addresses")
+//	}
+//	stationMac := strings.ToUpper(macsMatch[0])
+//	clientMac := strings.ToUpper(macsMatch[1])
+//
+//	ssidRegex := regexp.MustCompile("VSS:(\\w+)")
+//	ssidMatch := ssidRegex.FindStringSubmatch(syslog)
+//	if ssidMatch == nil {
+//		log.Fatalln(`Malformed syslog: Must include the SSID e.g., "VSS:OpiNet"`)
+//	}
+//	ssid := ssidMatch[1]
+//
+//	apRegex := regexp.MustCompile("WTP:(\\w+)")
+//	apMatch := apRegex.FindStringSubmatch(syslog)
+//	if apMatch == nil {
+//		log.Fatalln(`Malformed syslog: Must include the AP name e.g., "WTP:OpiAP"`)
+//	}
+//	ap := apMatch[1]
+//
+//	radioRegex := regexp.MustCompile("Radio(\\d+)")
+//	radioMatch := radioRegex.FindStringSubmatch(syslog)
+//	if radioMatch == nil {
+//		log.Fatalln(`Malformed syslog: Must include the radio number e.g. "Radio1"`)
+//	}
+//	radio, _ := strconv.Atoi(radioMatch[1])
+//
+//	return State{clientMac, connected, ssid, stationMac, ap, radio}
+//}
+
+// Flint 3 (GL-BE9300)
 func parseSyslog(syslog string) State {
-	connectedRegex := regexp.MustCompile("connected|disassociated")
+	connectedRegex := regexp.MustCompile("associated|disassociated")
 	connectedMatch := connectedRegex.FindString(syslog)
 	if connectedMatch == "" {
-		log.Fatalln(`Malformed syslog: Must either include "connected" or "disassociated"`)
+		log.Fatalln(`Malformed syslog: Must either include "associated" or "disassociated"`)
 	}
 	connected := connectedMatch == "connected"
 
-	macsRegex := regexp.MustCompile("(([0-9A-Fa-f]{2}:){5}([0-9A-Fa-f]{2}))")
-	macsMatch := macsRegex.FindAllString(syslog, 2)
-	if len(macsMatch) != 2 {
-		log.Fatalln("Malformed syslog: Must include station and client MAC addresses")
+	macsRegex := regexp.MustCompile("(([0-9A-Fa-f]{2}:){5}([0-9A-Fa-f]{1}))")
+	macsMatch := macsRegex.FindAllString(syslog, 1)
+	if len(macsMatch) != 1 {
+		log.Fatalln("Malformed syslog: Must include client MAC addresses")
 	}
-	stationMac := strings.ToUpper(macsMatch[0])
+	stationMac := "unknown"
 	clientMac := strings.ToUpper(macsMatch[1])
 
-	ssidRegex := regexp.MustCompile("VSS:(\\w+)")
-	ssidMatch := ssidRegex.FindStringSubmatch(syslog)
-	if ssidMatch == nil {
-		log.Fatalln(`Malformed syslog: Must include the SSID e.g., "VSS:OpiNet"`)
-	}
-	ssid := ssidMatch[1]
+	ssid := "unknown"
 
-	apRegex := regexp.MustCompile("WTP:(\\w+)")
+	apRegex := regexp.MustCompile(`\d\d:\d\d:\d\d\s(\w+)`)
 	apMatch := apRegex.FindStringSubmatch(syslog)
 	if apMatch == nil {
-		log.Fatalln(`Malformed syslog: Must include the AP name e.g., "WTP:OpiAP"`)
+		log.Fatalln(`Malformed syslog: Must include the AP name e.g., "OpiRouter"`)
 	}
 	ap := apMatch[1]
 
-	radioRegex := regexp.MustCompile("Radio(\\d+)")
+	radioRegex := regexp.MustCompile(`wlan(\\d+)`)
 	radioMatch := radioRegex.FindStringSubmatch(syslog)
 	if radioMatch == nil {
-		log.Fatalln(`Malformed syslog: Must include the radio number e.g. "Radio1"`)
+		log.Fatalln(`Malformed syslog: Must include the radio number e.g. "wlan2"`)
 	}
 	radio, _ := strconv.Atoi(radioMatch[1])
 
@@ -134,7 +171,7 @@ func connectMqtt(vars Vars) mqtt.Client {
 
 	client := mqtt.NewClient(options)
 	if token := client.Connect(); token.Wait() && token.Error() != nil {
-		log.Fatalln(fmt.Sprintf(`Could not connect to MQTT broker: "%s"`, token.Error()))
+		log.Fatalf(`Could not connect to MQTT broker: "%s"`, token.Error())
 	}
 
 	return client
@@ -186,7 +223,7 @@ func publishState(client mqtt.Client, device MqttDevice) {
 	publish(client, device.propertyStateTopic("radio"), strconv.Itoa(device.state.radio))
 }
 
-func publishDiscoveryProperty(client mqtt.Client, device MqttDevice, property string) {
+func publishDiscoveryProperty(client mqtt.Client, device MqttDevice, property string, available bool) {
 	topic := device.propertyDiscoveryTopic(property)
 
 	discoveryData := map[string]interface{}{
@@ -199,24 +236,27 @@ func publishDiscoveryProperty(client mqtt.Client, device MqttDevice, property st
 		"state_topic": device.propertyStateTopic(property),
 	}
 
-	if property != "connected" {
+	if !available {
+		discoveryData["availability_topic"] = device.propertyStateTopic("dummy")
+	} else if property != "connected" {
 		discoveryData["availability_topic"] = device.propertyStateTopic("connected")
 	}
 
 	jsonData, jsonErr := json.Marshal(discoveryData)
 	if jsonErr != nil {
-		log.Fatalln(fmt.Sprintf(`Error occured during payload marshalling: "%s"`, jsonErr))
+		log.Fatalf(`Error occured during payload marshalling: "%s"`, jsonErr)
 	}
 
 	publish(client, topic, string(jsonData))
 }
 
+// Set values to available or unavailable depending on what information the router in use provides
 func publishDiscovery(client mqtt.Client, device MqttDevice) {
-	publishDiscoveryProperty(client, device, "connected")
-	publishDiscoveryProperty(client, device, "ssid")
-	publishDiscoveryProperty(client, device, "station")
-	publishDiscoveryProperty(client, device, "ap")
-	publishDiscoveryProperty(client, device, "radio")
+	publishDiscoveryProperty(client, device, "connected", true)
+	publishDiscoveryProperty(client, device, "ssid", false)
+	publishDiscoveryProperty(client, device, "station", false)
+	publishDiscoveryProperty(client, device, "ap", true)
+	publishDiscoveryProperty(client, device, "radio", true)
 }
 
 func main() {

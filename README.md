@@ -9,6 +9,7 @@ Useful for easy presence detection with virtually no overhead.
 - [Future Prospect](#future-prospect)
 
 # Use-Case Scenario
+## Original
 I use a *"Digitalisierungsbox Smart"* router as my home router, which is a rebranded "*Bintec-elmeg be.IP plus*".
 Although I'm very satisfied with this device, for some reason the rebranded version does not provide any API.
 
@@ -24,6 +25,24 @@ XX:XX:XX:XX:XX:XX: Station YY:YY:YY:YY:YY:YY disassociated from VSS:OpiNet at WT
 The scope of this project is to parse such messages and relay the formatted information to an MQTT broker.
 
 This way, I'm able to detect when I'm home based on my devices' wifi connection and automate things around that.
+
+## Update
+I have since upgraded to the *"Flint 3 (GL-BE9300)"* router.
+While it does finally allow me to `ssh` into it, I do love the push approach of this `rsyslog` approach.
+
+Thankfully, my new router also supports forwarding syslog messages.
+In the new router's logs we find:
+```
+OpiRouter hostapd: wlan2: STA yy:yy:yy:yy:yy:yy IEEE 802.11: disassociated
+OpiRouter hostapd: wlan2: STA yy:yy:yy:yy:yy:yy IEEE 802.11: associated (aid 1)
+```
+
+Unfortunately, this router provides less information.
+Fortunately, that is still enough information for my use-case.
+Any other information could of course be additionally polled via a pull approach.
+
+I have adjusted the source code to reflect the new router's log format and carried information, but I kept the old version commented out for historical purposes.
+Perhaps other tinkerers might also find it useful for adapting this code to their own needs.
 
 # Installation
 1. Prerequisites
