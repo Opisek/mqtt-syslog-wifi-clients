@@ -47,14 +47,14 @@ type MqttDevice struct {
 func parseEnv() Vars {
 	executable, executableErr := os.Executable()
 	if executableErr != nil {
-		log.Fatalf(`Could not determine executable directory: "%s"`, executableErr)
+		log.Fatalf(`Could not determine executable directory: "%s"\n`, executableErr)
 	}
 	executablePath := filepath.Dir(executable)
 	envPath := filepath.Join(executablePath, ".env")
 
 	envErr := godotenv.Load(envPath)
 	if envErr != nil {
-		log.Fatalf(`Could not load .env: "%s"`, envErr)
+		log.Fatalf(`Could not load .env: "%s"\n`, envErr)
 	}
 
 	host := os.Getenv("MQTT_HOST")
@@ -133,15 +133,15 @@ func parseSyslog(syslog string) State {
 	if connectedMatch == "" {
 		log.Fatalln(`Malformed syslog: Must either include "associated" or "disassociated"`)
 	}
-	connected := connectedMatch == "connected"
+	connected := connectedMatch == "associated"
 
-	macsRegex := regexp.MustCompile("(([0-9A-Fa-f]{2}:){5}([0-9A-Fa-f]{1}))")
+	macsRegex := regexp.MustCompile("(([0-9A-Fa-f]{2}:){5}([0-9A-Fa-f]{2}))")
 	macsMatch := macsRegex.FindAllString(syslog, 1)
 	if len(macsMatch) != 1 {
 		log.Fatalln("Malformed syslog: Must include client MAC addresses")
 	}
 	stationMac := "unknown"
-	clientMac := strings.ToUpper(macsMatch[1])
+	clientMac := strings.ToUpper(macsMatch[0])
 
 	ssid := "unknown"
 
@@ -152,7 +152,7 @@ func parseSyslog(syslog string) State {
 	}
 	ap := apMatch[1]
 
-	radioRegex := regexp.MustCompile(`wlan(\\d+)`)
+	radioRegex := regexp.MustCompile(`wlan(\d+)`)
 	radioMatch := radioRegex.FindStringSubmatch(syslog)
 	if radioMatch == nil {
 		log.Fatalln(`Malformed syslog: Must include the radio number e.g. "wlan2"`)
@@ -171,7 +171,7 @@ func connectMqtt(vars Vars) mqtt.Client {
 
 	client := mqtt.NewClient(options)
 	if token := client.Connect(); token.Wait() && token.Error() != nil {
-		log.Fatalf(`Could not connect to MQTT broker: "%s"`, token.Error())
+		log.Fatalf(`Could not connect to MQTT broker: "%s"\n`, token.Error())
 	}
 
 	return client
@@ -244,7 +244,7 @@ func publishDiscoveryProperty(client mqtt.Client, device MqttDevice, property st
 
 	jsonData, jsonErr := json.Marshal(discoveryData)
 	if jsonErr != nil {
-		log.Fatalf(`Error occured during payload marshalling: "%s"`, jsonErr)
+		log.Fatalf(`Error occured during payload marshalling: "%s"\n`, jsonErr)
 	}
 
 	publish(client, topic, string(jsonData))
